@@ -3,6 +3,7 @@ robotrack
 
 mbed内蔵ラジコンを制御するプログラム
 rosを使ったraspberry piとの通信も視野に入れて奮闘中
+[環境]ubuntu 16.04/ROS kinetic
 
 <!-- ## Description -->
 
@@ -17,7 +18,10 @@ rosを使ったraspberry piとの通信も視野に入れて奮闘中
 
 <!-- ## Usage -->
 
-<!-- ## Install -->
+## Install
+mbedはオンラインコンパイラを使用して.binファイルを作成する。
+もしもオフライン環境でmbedに書き込みたいのであれば以下を参照
+[rosserial_mbed](http://wiki.ros.org/rosserial_mbed/Tutorials)
 
 <!-- ## Contribution -->
 
