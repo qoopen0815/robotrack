@@ -1,5 +1,5 @@
 PROJECT         := robotrack
-DEVICES         := LPC1768 KL25Z NUCLEO_F401RE
+DEVICES         := LPC1768
 GCC4MBED_DIR    := $(GCC4MBED_DIR)
 USER_LIBS       := !$(ROS_LIB_DIR) $(ROS_LIB_DIR)/BufferedSerial
 NO_FLOAT_SCANF  := 1
