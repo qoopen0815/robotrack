@@ -1,22 +1,53 @@
 #include "mbed.h"
-#include "Motordriver/motordriver.h"
-#include "QEI/QEI.h"
-#include "MPU6050/MPU6050.h"
+#include "motordriver.h"
+#include "QEI.h"
+#include "MPU6050.h"
+#include "Servo.h"
 #include <ros.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Empty.h>
 
 #define N 3     // mpuDeg_param => 0:Pitch, 1:Roll
 
+#ifdef TARGET_LPC1768
+#define MOTOR_PWM   p21
+#define MOTOR_FWD   p19
+#define MOTOR_REV   p20
+#define MOTOR_BRAKE 1
+#define QEI_PHASEA  p25
+#define QEI_PHASEB  p26
+#define QEI_PHASEC  p24
+#define QEI_PULSE   205
+#define QEI_CODE    QEI::X2_ENCODING
+#define MPU_SDA     p28
+#define MPU_SDL     p27
+//#define SERVO_PIN   p29
+#elif defined(TARGET_KL25Z) || defined(TARGET_NUCLEO_F401RE)
+#define MOTOR_PWM   D1
+#define MOTOR_FWD   D2
+#define MOTOR_REV   D3
+#define MOTOR_BRAKE 1
+#define QEI_PHASEA  D4
+#define QEI_PHASEB  D5
+#define QEI_PHASEC  D6
+#define QEI_PULSE   205
+#define QEI_CODE    QEI::X2_ENCODING
+#define MPU_SDA     D7
+#define MPU_SDL     D8
+//#define SERVO_PIN   D9
+#else
+#error "You need to specify a pin for the sensor"
+#endif
+
 ros::NodeHandle nh;
-//ros::Subscriber<std_msgs::Empty> sub("toggle_led", &messageCb);
+DigitalOut myled(LED1);
 
-// DigitalOut myled(LED1);
+void messageCb(const std_msgs::Empty& toggle_msg)
+{
+    myled = !myled;   // blink the led
+}
 
-// void messageCb(const std_msgs::Empty& toggle_msg)
-// {
-//     myled = !myled;   // blink the led
-// }
+ros::Subscriber<std_msgs::Empty> sub("toggle_led", &messageCb);
 
 /*
 TA7291Pのpin配置
@@ -32,43 +63,16 @@ pin9  - not connect
 pin10 - motor(+ or -)
 */
 
-//PCシリアル通信
+//PC-Serial
 Serial pc(USBTX, USBRX);
-
-#ifdef TARGET_LPC1768
-#define MOTOR_PWM   p21
-#define MOTOR_FWD   p19
-#define MOTOR_REV   p20
-#define MOTOR_BRAKE 1
-#define QEI_PHASEA  p25
-#define QEI_PHASEB  p26
-#define QEI_PHASEC  p24
-#define QEI_PULSE   205
-#define QEI_CODE    QEI::X2_ENCODING
-#define MPU_SDA     p28
-#define MPU_SDL     p27
-#elif defined(TARGET_KL25Z) || defined(TARGET_NUCLEO_F401RE)
-#define MOTOR_PWM   D1
-#define MOTOR_FWD   D2
-#define MOTOR_REV   D3
-#define MOTOR_BRAKE 1
-#define QEI_PHASEA  D4
-#define QEI_PHASEB  D5
-#define QEI_PHASEC  D6
-#define QEI_PULSE   205
-#define QEI_CODE    QEI::X2_ENCODING
-#define MPU_SDA     D7
-#define MPU_SDL     D8
-#else
-#error "You need to specify a pin for the sensor"
-#endif
-
 //motordriver
 Motor motor1(MOTOR_PWM, MOTOR_FWD, MOTOR_REV, MOTOR_BRAKE);
 //encoder
 QEI wheel(QEI_PHASEA, QEI_PHASEB, QEI_PHASEC, QEI_PULSE, QEI_CODE);
 //IMU
 MPU6050 mpu(MPU_SDA, MPU_SDL);
+//servo
+//Servo servo(SERVO_PIN);
 
 //Timer
 Timer t1;  //全体経過時間
@@ -76,7 +80,7 @@ Timer t2;  //pid用
 
 double e[3] = {};  //e[0]=k-1, e[1]=k, e[2]=sigma
 
-//PID制御出力
+//PID
 double input_pid(double e[], double y, double r, double Kp, double Ki, double Kd)
 {
     double ts = t2.read();
