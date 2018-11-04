@@ -22,19 +22,6 @@
 #define MPU_SDA     p28
 #define MPU_SDL     p27
 //#define SERVO_PIN   p29
-#elif defined(TARGET_KL25Z) || defined(TARGET_NUCLEO_F401RE)
-#define MOTOR_PWM   D1
-#define MOTOR_FWD   D2
-#define MOTOR_REV   D3
-#define MOTOR_BRAKE 1
-#define QEI_PHASEA  D4
-#define QEI_PHASEB  D5
-#define QEI_PHASEC  D6
-#define QEI_PULSE   205
-#define QEI_CODE    QEI::X2_ENCODING
-#define MPU_SDA     D7
-#define MPU_SDL     D8
-//#define SERVO_PIN   D9
 #else
 #error "You need to specify a pin for the sensor"
 #endif
