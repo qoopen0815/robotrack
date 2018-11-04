@@ -1,15 +1,15 @@
 #include "mbed.h"
-#include "motordriver.h"
-#include "QEI.h"
-#include "MPU6050.h"
+#include "Motordriver/motordriver.h"
+#include "QEI/QEI.h"
+#include "MPU6050/MPU6050.h"
 #include <ros.h>
-#include <string>
+#include <std_msgs/String.h>
 #include <std_msgs/Empty.h>
 
-// #define N 3     // mpuDeg_param => 0:Pitch, 1:Roll
+#define N 3     // mpuDeg_param => 0:Pitch, 1:Roll
 
-// ros::NodeHandle nh;
-// ros::Subscriber<std_msgs::Empty> sub("toggle_led", &messageCb);
+ros::NodeHandle nh;
+//ros::Subscriber<std_msgs::Empty> sub("toggle_led", &messageCb);
 
 // DigitalOut myled(LED1);
 
@@ -18,62 +18,87 @@
 //     myled = !myled;   // blink the led
 // }
 
-// /*
-// TA7291Pのpin配置
-// pin1  - GND
-// pin2  - motor(+ or -)
-// pin3  - not connect
-// pin4  - PwmOut motorSpeed(p21);
-// pin5  - DigitalOut dir1(p19);
-// pin6  - DigitalOut dir2(p20);
-// pin7  - Vout
-// pin8  - external power supply
-// pin9  - not connect
-// pin10 - motor(+ or -)
-// */
+/*
+TA7291Pのpin配置
+pin1  - GND
+pin2  - motor(+ or -)
+pin3  - not connect
+pin4  - PwmOut motorSpeed(p21);
+pin5  - DigitalOut dir1(p19);
+pin6  - DigitalOut dir2(p20);
+pin7  - Vout
+pin8  - external power supply
+pin9  - not connect
+pin10 - motor(+ or -)
+*/
 
-// //PCシリアル通信
-// Serial pc(USBTX, USBRX);
+//PCシリアル通信
+Serial pc(USBTX, USBRX);
 
-// //モータードライバ
-// Motor motor1(p21, p19, p20, 1); // pwm, fwd, rev, can brake ==> wheel
-// Motor motor2(p22, p17, p18, 1); // pwm, fwd, rev, can brake ==> steering
+#ifdef TARGET_LPC1768
+#define MOTOR_PWM   p21
+#define MOTOR_FWD   p19
+#define MOTOR_REV   p20
+#define MOTOR_BRAKE 1
+#define QEI_PHASEA  p25
+#define QEI_PHASEB  p26
+#define QEI_PHASEC  p24
+#define QEI_PULSE   205
+#define QEI_CODE    QEI::X2_ENCODING
+#define MPU_SDA     p28
+#define MPU_SDL     p27
+#elif defined(TARGET_KL25Z) || defined(TARGET_NUCLEO_F401RE)
+#define MOTOR_PWM   D1
+#define MOTOR_FWD   D2
+#define MOTOR_REV   D3
+#define MOTOR_BRAKE 1
+#define QEI_PHASEA  D4
+#define QEI_PHASEB  D5
+#define QEI_PHASEC  D6
+#define QEI_PULSE   205
+#define QEI_CODE    QEI::X2_ENCODING
+#define MPU_SDA     D7
+#define MPU_SDL     D8
+#else
+#error "You need to specify a pin for the sensor"
+#endif
 
-// //エンコーダ
-// QEI wheel(p25, p26, p24, 205, QEI::X2_ENCODING);  //QEI name(phase A, phase B, phase Z, pulse, CODE)
+//motordriver
+Motor motor1(MOTOR_PWM, MOTOR_FWD, MOTOR_REV, MOTOR_BRAKE);
+//encoder
+QEI wheel(QEI_PHASEA, QEI_PHASEB, QEI_PHASEC, QEI_PULSE, QEI_CODE);
+//IMU
+MPU6050 mpu(MPU_SDA, MPU_SDL);
 
-// //ジャイロ
-// MPU6050 mpu(p28, p27);      //SDA, SDL
+//Timer
+Timer t1;  //全体経過時間
+Timer t2;  //pid用
 
-// //Timer
-// Timer t1; //全体経過時間
-// Timer t2; //pid用
+double e[3] = {};  //e[0]=k-1, e[1]=k, e[2]=sigma
 
-// double e[3] = {};    //e[0]=k-1, e[1]=k, e[2]=sigma
-
-// //PID制御出力
-// double input_pid(double e[], double y, double r, double Kp, double Ki, double Kd)
-// {
-//     double ts = t2.read();
-//     t2.reset();
+//PID制御出力
+double input_pid(double e[], double y, double r, double Kp, double Ki, double Kd)
+{
+    double ts = t2.read();
+    t2.reset();
     
-//     e[0] = e[1];
-//     e[1] = r - y;
-//     if (isnan(e[1]) != true) e[2] += e[1];
+    e[0] = e[1];
+    e[1] = r - y;
+    if (isnan(e[1]) != true) e[2] += e[1];
     
-//     double u = Kp * e[1] + Ki * ts * e[2] + Kd * (e[1] - e[0]) / ts;
+    double u = Kp * e[1] + Ki * ts * e[2] + Kd * (e[1] - e[0]) / ts;
     
-//     pc.printf("error = %4.2f\t", e[1]);
+    pc.printf("error = %4.2f\t", e[1]);
     
-//     return -u;
-// }
+    return -u;
+}
 
-// void speedControll(void)    //速度制御
-// {   
-//     motor1.speed(1.0);
-//     pc.printf("input = %4.2f\t", motor1.state());    
-//     pc.printf("RPS = %4.2f\r\n", wheel.getRPS());
-// } //input_pid(e, wheel.getRPS(), 2.0, 0.3, 0.3, 0)
+void speedControll(void)    //速度制御
+{   
+    motor1.speed(1.0);
+    pc.printf("input = %4.2f\t", motor1.state());    
+    pc.printf("RPS = %4.2f\r\n", wheel.getRPS());
+} //input_pid(e, wheel.getRPS(), 2.0, 0.3, 0.3, 0)
 
 int main()
 {
