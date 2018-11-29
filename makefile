@@ -1,4 +1,5 @@
 PROJECT         := robotrack
+DIRS 		:= .
 DEVICES         := LPC1768
 GCC4MBED_DIR    := $(GCC4MBED_DIR)
 USER_LIBS       := !$(ROS_LIB_DIR) $(ROS_LIB_DIR)/BufferedSerial
