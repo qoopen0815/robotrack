@@ -2,6 +2,7 @@
 #include "motordriver.h"
 #include "QEI.h"
 #include "MPU6050.h"
+#include "MadgwickFilter.hpp"
 #include "Servo.h"
 #include "PIDcontroller.h"
 #include "Eigen/Dense.h"
@@ -11,7 +12,7 @@
 #include <std_msgs/Empty.h>
 
 #define M_PI 3.14159265358979323846
-#define N 3     // mpuDeg_param => 0:Pitch, 1:Roll
+#define AXIS 3
 
 #ifdef TARGET_LPC1768
 #define MOTOR_PWM   p21
@@ -26,7 +27,6 @@
 #define MPU_SDA     p28
 #define MPU_SDL     p27
 #define SERVO_PIN   p29
-
 #else
 #error "You need to specify a pin for the sensor"
 #endif
@@ -53,6 +53,7 @@ void messageCb(const std_msgs::Empty& toggle_msg)
 }
 ros::Subscriber<std_msgs::Empty> sub("toggle_led", &messageCb);
 
+/*------ constructor------*/
 //PC-Serial
 Serial pc(USBTX, USBRX);
 //motordriver
@@ -63,14 +64,57 @@ QEI wheel(QEI_PHASEA, QEI_PHASEB, QEI_PHASEC, QEI_PULSE, QEI_CODE);
 MPU6050 mpu(MPU_SDA, MPU_SDL);
 //servo
 //Servo servo(SERVO_PIN);
-
 //Timer
-Timer t1;  //全体経過時間
-Timer t2;  //pid用
+Timer t1;  //total time
+//EKF > imu
+MadgwickFilter attitude(1.0);
 
-double e[3] = {};  //e[0]=k-1, e[1]=k, e[2]=sigma
+void calibrateIMU(float bias[6])
+{
+  float gyro[AXIS];
+  float acc[AXIS];
+  
+  for(int i=1; i<=50; i++)
+    {
+      mpu.getGyro(gyro);
+      mpu.getAccelero(acc);
+
+      for(int j=0; j<AXIS; j++)
+	{
+	  //average
+	  bias[j] = (i-1)*bias[j]/i + gyro[j]/i;
+	  bias[j+3] = (i-1)*bias[j+3]/i + acc[j]/i;
+	}
+    }
+}
 
 int main()
 {
+  pc.printf("\r\n---------------------start program---------------------");
+  pc.printf("\r\n");
 
+  t1.start();
+  float gyro[AXIS];
+  float acc[AXIS];
+  float bias[6];
+  float rpyEuler[AXIS];
+
+  calibrateIMU(bias);
+  
+  while(true)
+    {
+      mpu.getGyro(gyro);
+      mpu.getAccelero(acc);
+
+      for(int i=0; i<AXIS; i++)
+	{
+	  gyro[i] = gyro[i] - bias[i];
+	  acc[i] = acc[i] - bias[i+3];
+	}
+      
+      attitude.MadgwickAHRSupdateIMU(gyro[0], gyro[1], gyro[2], acc[0], acc[1], acc[2]);
+      attitude.getEulerAngle(rpyEuler);
+
+      pc.printf("%f\t%f\t%f\t%f\r\n", bias[0], rpyEuler[0], rpyEuler[1], rpyEuler[2]);
+    }
 }
