@@ -10,3 +10,7 @@ pin8  - external power supply
 pin9  - not connect
 pin10 - motor(+ or -)
 
+RE30E
+white  - Output A
+orange(green) - Output B
+yellow - Output Z
