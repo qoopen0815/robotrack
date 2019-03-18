@@ -77,7 +77,7 @@ Temporary Items
 *.his
 
 #Inventor
-*/OldVersions/
+OldVersions
 
 #CATIA
 *.CATDrawing
@@ -87,3 +87,6 @@ DensoProject/JamingThreeFinger/parts/finger/parts/OldVersions/BackRubber_type3.0
 
 #Git
 */.git
+
+#mbed
+mbed-os
